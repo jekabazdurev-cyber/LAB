@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторна робота: Метрика Хартлі</title>
+    <style>
+        :root {
+            --bg-page: #000000;
+            --bg-slide: #181818;
+            --box-bg: #2a2a2a;
+            --text-main: #ffffff;
+            --text-muted: #b3b3b3;
+            --accent: #00e5ff;
+            --highlight: #ffd700;
+            --danger: #ff4081;
+            --success: #00e676;
+        }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-page); color: var(--text-main);
+            overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        .presentation {
+            width: 95vw; height: 90vh; position: relative;
+            background-color: var(--bg-slide); border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 229, 255, 0.15); border: 1px solid #333;
+            display: flex; flex-direction: column;
+        }
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 80px);
+            padding: 40px 60px; box-sizing: border-box; opacity: 0;
+            transition: opacity 0.3s ease; pointer-events: none;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .slide.active { opacity: 1; pointer-events: auto; z-index: 10; }
+        
+        h1 { font-size: 3.2em; color: var(--accent); text-align: center; margin-bottom: 10px; line-height: 1.2; }
+        h2 { font-size: 2.4em; color: var(--accent); border-bottom: 3px solid var(--box-bg); padding-bottom: 15px; margin-top: 0; }
+        p, li { font-size: 1.5em; line-height: 1.6; }
+        .subtitle { font-size: 1.6em; color: var(--text-muted); text-align: center; margin-bottom: 30px; }
+        
+        ul.styled-list { list-style: none; padding: 0; margin: 0; }
+        ul.styled-list li { margin-bottom: 15px; background: var(--box-bg); padding: 18px 25px; border-radius: 8px; border-left: 5px solid var(--highlight); }
+        ul.styled-list strong { color: var(--highlight); font-size: 1.1em; }
+        
+        .math-block { background: #000; padding: 25px; border-radius: 10px; font-family: monospace; font-size: 1.8em; color: var(--highlight); text-align: center; border: 1px solid #444; margin: 25px 0; }
+        
+        .scrollable-text {
+            background-color: var(--box-bg); padding: 25px; border-radius: 10px;
+            border-left: 5px solid var(--accent); height: 45vh; overflow-y: auto; font-size: 1.2em;
+        }
+        .scrollable-text::-webkit-scrollbar { width: 14px; }
+        .scrollable-text::-webkit-scrollbar-track { background: #111; border-radius: 7px; }
+        .scrollable-text::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 7px; }
+        
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; margin-top: 20px; }
+        .stat-box { background: var(--box-bg); border-bottom: 5px solid var(--accent); padding: 25px; border-radius: 10px; text-align: center; }
+        .stat-box .number { font-size: 3.5em; color: var(--highlight); font-weight: bold; display: block; margin-top: 10px; }
+        
+        .chart-row { display: flex; align-items: center; justify-content: center; gap: 60px; margin-top: 20px; }
+        .pie-chart { width: 280px; height: 280px; border-radius: 50%; border: 6px solid var(--box-bg); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .pie-alphabet { background: conic-gradient(var(--accent) 0% 65%, var(--highlight) 65% 85%, var(--danger) 85% 100%); }
+        .pie-entropy { background: conic-gradient(#00e5ff 0% 23%, #ffd700 23% 48%, #ff4081 48% 78%, #00e676 78% 100%); }
+        
+        .legend { background: var(--box-bg); padding: 25px; border-radius: 10px; }
+        .legend-item { display: flex; align-items: center; margin-bottom: 12px; font-size: 1.3em; }
+        .color-box { width: 24px; height: 24px; margin-right: 15px; border-radius: 4px; }
+        
+        .bar-chart-container { display: flex; align-items: flex-end; justify-content: center; gap: 40px; height: 300px; margin-top: 40px; padding-bottom: 40px; border-bottom: 2px solid #555; position: relative; }
+        .bar { width: 100px; background: var(--accent); display: flex; flex-direction: column; justify-content: flex-start; align-items: center; border-radius: 8px 8px 0 0; color: #000; font-weight: bold; font-size: 1.5em; padding-top: 10px; }
+        .bar-label { position: absolute; bottom: 5px; color: var(--text-main); font-size: 1.2em; text-align: center; width: 100px; }
+        
+        .highlight-result { font-size: 5em; text-align: center; color: var(--highlight); font-weight: bold; text-shadow: 0 0 40px rgba(255, 215, 0, 0.4); margin-top: 30px;}
+        
+        .controls { position: absolute; bottom: 0; left: 0; width: 100%; height: 80px; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; background: #111; border-top: 1px solid #333; box-sizing: border-box; z-index: 100; }
+        button { background-color: var(--accent); color: #000; border: none; padding: 12px 30px; font-size: 1.3em; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #00b3cc; transform: scale(1.05); }
+        button:disabled { background-color: #333; color: #666; cursor: not-allowed; transform: none; }
+        .slide-counter { color: var(--text-main); font-size: 1.5em; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="presentation">
+
+    <!-- Слайд 1 -->
+    <div class="slide active">
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: center;">
+            <p style="color: var(--text-muted); letter-spacing: 4px; font-size: 1.5em; text-transform: uppercase;">Лабораторна робота</p>
+            <h1>Визначення кількості інформації<br>за метрикою Хартлі</h1>
+            <p class="subtitle">Дослідження інформаційної ємності англомовного тексту</p>
+            <div style="margin-top: 40px; padding: 20px; background: var(--box-bg); display: inline-block; border-radius: 10px; text-align: left; border-left: 5px solid var(--accent);">
+                <p style="margin: 0; color: var(--highlight); font-weight: bold;">Виконала команда:</p>
+                <p style="margin: 5px 0 0 0;">Гуленко К.І., Чорненька С.В., Рак М.О., Баздирєв Є.С.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Слайд 2 -->
+    <div class="slide">
+        <h2>Мета та завдання дослідження</h2>
+        <div style="background: var(--box-bg); padding: 30px; border-radius: 10px; margin-bottom: 20px;">
+            <p><strong style="color: var(--highlight);">Мета:</strong> Практично закріпити знання з теорії інформації та навчитися обчислювати інформаційну ємність повідомлень.</p>
+        </div>
+        <p><strong style="color: var(--accent);">Основні завдання:</strong></p>
+        <ul class="styled-list">
+            <li>1. Виконати синтаксичний аналіз тексту.</li>
+            <li>2. Визначити потужність алфавіту (M).</li>
+            <li>3. Розрахувати ентропію одного символу.</li>
+            <li>4. Обчислити кількість інформації на рівнях: слово, речення, абзац, текст.</li>
+            <li>5. Візуалізувати отримані дані за допомогою діаграм.</li>
+        </ul>
+    </div>
+
+    <!-- Слайд 3 -->
+    <div class="slide">
+        <h2>Розподіл ролей у команді</h2>
+        <ul class="styled-list">
+            <li><strong>Гуленко К.І. (старший)</strong> — Керівник проєкту. Організація роботи команди, підбір тексту для дослідження, синтаксичний аналіз.</li>
+            <li><strong>Чорненька С.В.</strong> — Теоретик. Теоретичне обґрунтування вибору метрики Хартлі, розрахунок потужності алфавіту.</li>
+            <li><strong>Рак М.О.</strong> — Головний обчислювач. Математичні розрахунки інформаційної ваги тексту на всіх рівнях.</li>
+            <li><strong>Баздирєв Є.С.</strong> — Візуалізатор. Побудова кругових та стовпчастих діаграм, структурування даних та дизайн презентації.</li>
+        </ul>
+    </div>
+
+    <!-- Слайд 4 -->
+    <div class="slide">
+        <h2>Об'єкт дослідження (Текст)</h2>
+        <p>Для аналізу обрано художній англомовний текст. <em>(Прокрутіть текст вниз, щоб прочитати його повністю)</em>:</p>
+        <div class="scrollable-text">
+            <p>The city wakes slowly, as if reluctant to leave the comfort of dreams. Pale light spills across quiet streets, touching windows and rooftops with a gentle glow. Somewhere in the distance, a lone figure walks without hurry, listening to the soft rhythm of footsteps echoing against the morning stillness. A faint breeze carries the scent of fresh air, promising a new beginning, even for those who feel lost within themselves. It is in such moments that the world feels both vast and deeply personal, inviting reflection without demanding it.</p>
+            <p>People pass one another without knowing the stories carried behind calm expressions. Every glance, every gesture hides a universe of thoughts, memories, and silent hopes. A simple smile may conceal sorrow, just as quiet eyes can reflect unspoken strength built over years of unseen struggle. In crowded places, loneliness can still find a way to settle into the heart, yet so can unexpected warmth from the smallest act of kindness. Life unfolds in these subtle contrasts, where the ordinary becomes extraordinary if one dares to look closely and listen with intention.</p>
+            <p>As the day grows brighter, so too does the quiet determination within each person. Challenges arise, unexpected and often unwelcome, shaping the path forward in ways we rarely understand at first. Some moments test patience, others demand courage, but each leaves behind a trace of growth. Even failure, though painful, carries lessons that success often cannot teach. In time, these experiences form the foundation of resilience, reminding us that strength is not something we are born with, but something we build.</p>
+            <p>When evening comes, the city changes once again, trading the clarity of daylight for the mystery of shadows and lights. Reflections shimmer in windows, and the noise of the day softens into a quieter rhythm. People return to their thoughts, their memories, and their dreams, carrying with them everything the day has given. And though tomorrow remains uncertain, there is comfort in knowing that every ending holds within it the quiet beginning of something new.</p>
+        </div>
+    </div>
+
+    <!-- Слайд 5 -->
+    <div class="slide">
+        <h2>Базова статистика тексту</h2>
+        <p>Синтаксичний розбір тексту дозволив визначити абсолютні величини, які є базою для розрахунків:</p>
+        <div class="grid-4">
+            <div class="stat-box">Символів загалом<br><span class="number">2091</span></div>
+            <div class="stat-box">Кількість слів<br><span class="number">336</span></div>
+            <div class="stat-box">Кількість речень<br><span class="number">19</span></div>
+            <div class="stat-box">Кількість абзаців<br><span class="number">4</span></div>
+        </div>
+    </div>
+
+    <!-- Слайд 6 -->
+    <div class="slide">
+        <h2>Співвідношення елементів тексту (Гістограма)</h2>
+        <p>Графік наочно демонструє структурну щільність тексту. На один абзац припадає в середньому майже 5 речень, а на одне речення — близько 18 слів.</p>
+        <div class="bar-chart-container">
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 100%; background: var(--accent);">336</div>
+                <div class="bar-label" style="bottom: -35px;">Слова</div>
+            </div>
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 30%; background: var(--highlight);">19</div>
+                <div class="bar-label" style="bottom: -35px;">Речення</div>
+            </div>
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 10%; background: var(--danger);">4</div>
+                <div class="bar-label" style="bottom: -35px;">Абзаци</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Слайд 7 -->
+    <div class="slide">
+        <h2>Визначення потужності алфавіту (M)</h2>
+        <ul class="styled-list" style="margin-top: 30px;">
+            <li>Для розрахунку необхідно знати кількість унікальних станів (символів), які генерує джерело.</li>
+            <li>У нашому повідомленні використано літери англійського алфавіту (верхній і нижній регістр), пробіли та знаки пунктуації (крапки, коми).</li>
+            <li><strong>Висновок:</strong> Потужність алфавіту становить <strong>M = 40</strong>.</li>
+        </ul>
+    </div>
+
+    <!-- Слайд 8 -->
+    <div class="slide">
+        <h2>Розподіл символів у тексті (Кругова діаграма)</h2>
+        <p>Як видно з діаграми, п'яту частину всього інформаційного обсягу займають пробіли, що є стандартним показником для текстів.</p>
+        <div class="chart-row">
+            <div class="pie-chart pie-alphabet"></div>
+            <div class="legend">
+                <div class="legend-item"><div class="color-box" style="background: var(--accent);"></div> Літери (нижній регістр) — 65%</div>
+                <div class="legend-item"><div class="color-box" style="background: var(--highlight);"></div> Пробіли — 20%</div>
+                <div class="legend-item"><div class="color-box" style="background: var(--danger);"></div> Пунктуація та великі літери — 15%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Слайд 9 -->
+    <div class="slide">
+        <h2>Теоретичне обґрунтування (Формула Хартлі)</h2>
+        <p>Базова формула вимірювання кількості інформації:</p>
+        <div class="math-block">I = n × log₂ M</div>
+        <p style="margin-top: 20px;">Де <strong>I</strong> — кількість інформації, <strong>n</strong> — довжина повідомлення (символи), <strong>M</strong> — потужність алфавіту (40).</p>
+        <div style="background: var(--box-bg); padding: 25px; border-radius: 10px; margin-top: 30px;">
+            <p style="margin: 0;">Інформаційна вага <strong>одного символу</strong> обчислюється так:</p>
+            <p style="color: var(--accent); font-size: 1.5em; font-family: monospace; text-align: center; margin: 15px 0 0 0;">I(симв) = log₂ 40 ≈ 5.3219 біт</p>
+        </div>
+    </div>
+
+    <!-- Слайд 10 -->
+    <div class="slide">
+        <h2>Рівень 1: Інформаційна вага Слова</h2>
+        <div style="background: var(--box-bg); padding: 30px; border-radius: 10px; margin-top: 20px;">
+            <p>Середня довжина слова у тексті: <strong>6.22 символів</strong>.</p>
+            <p>Розрахунок за метрикою Хартлі:</p>
+            <div class="math-block" style="background: #111;">I(слова) = 6.22 × 5.3219 = 33.12 біт</div>
+            <p style="color: var(--text-muted); font-style: italic;">Опис: Одне середньостатистичне слово в нашому тексті несе трохи більше ніж 33 біти інформації.</p>
+        </div>
+    </div>
+
+    <!-- Слайд 11 -->
+    <div class="slide">
+        <h2>Рівень 2: Інформаційна вага Речення</h2>
+        <div style="background: var(--box-bg); padding: 30px; border-radius: 10px; margin-top: 20px;">
+            <p>Середня довжина речення у тексті: <strong>110.05 символів</strong>.</p>
+            <p>Розрахунок за метрикою Хартлі:</p>
+            <div class="math-block" style="background: #111;">I(речення) = 110.05 × 5.3219 = 585.69 біт</div>
+            <p style="color: var(--text-muted); font-style: italic;">Опис: Речення генерує значний стрибок ентропії, що дорівнює майже 586 бітам.</p>
+        </div>
+    </div>
+
+    <!-- Слайд 12 -->
+    <div class="slide">
+        <h2>Рівень 3: Інформаційна вага Абзацу</h2>
+        <div style="background: var(--box-bg); padding: 40px; border-radius: 10px; margin-top: 20px; text-align: center;">
+            <p>Середня довжина абзацу у тексті: <strong>522.75 символів</strong>.</p>
+            <p>Розрахунок за метрикою Хартлі:</p>
+            <div class="math-block" style="font-size: 2.5em; padding: 35px; border-color: var(--accent);">I(абзацу) = 522.75 × 5.3219 = <br><span style="color: var(--accent);">2782.04 біт</span></div>
+        </div>
+    </div>
+
+    <!-- Слайд 13 -->
+    <div class="slide">
+        <h2>Інформаційне навантаження абзаців (Кругова діаграма)</h2>
+        <p>Діаграма показує, що третій абзац є найбільш інформаційно містким, оскільки містить найдовші речення.</p>
+        <div class="chart-row">
+            <div class="pie-chart pie-entropy"></div>
+            <div class="legend">
+                <div class="legend-item"><div class="color-box" style="background: #00e5ff;"></div> Абзац 1 (Вступ) — 23%</div>
+                <div class="legend-item"><div class="color-box" style="background: #ffd700;"></div> Абзац 2 — 25%</div>
+                <div class="legend-item"><div class="color-box" style="background: #ff4081;"></div> Абзац 3 (Найдовший) — 30%</div>
+                <div class="legend-item"><div class="color-box" style="background: #00e676;"></div> Абзац 4 (Висновок) — 22%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Слайд 14 -->
+    <div class="slide">
+        <h2>Динаміка зростання ентропії (Гістограма)</h2>
+        <p>На графіку чітко простежується експоненційне зростання обсягу інформації при переході від слова до абзацу.</p>
+        <div class="bar-chart-container" style="height: 350px;">
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 5%; background: var(--success); font-size: 1em;">33</div>
+                <div class="bar-label" style="bottom: -35px;">Слово</div>
+            </div>
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 25%; background: var(--highlight);">585</div>
+                <div class="bar-label" style="bottom: -35px;">Речення</div>
+            </div>
+            <div style="position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                <div class="bar" style="height: 100%; background: var(--danger);">2782</div>
+                <div class="bar-label" style="bottom: -35px;">Абзац</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Слайд 15 -->
+    <div class="slide">
+        <h2>Загальна інформаційна ємність повідомлення</h2>
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding-bottom: 40px;">
+            <p>Загальна кількість символів (n) = 2091</p>
+            <div class="math-block">I(заг) = 2091 × log₂ 40</div>
+            <div class="highlight-result">11 128.15 біт</div>
+            <p style="color: var(--text-muted); font-size: 1.5em; margin-top: 15px;">(або приблизно 1.36 Кбайт)</p>
+        </div>
+    </div>
+
+    <!-- Слайд 16 -->
+    <div class="slide">
+        <h2>Висновки</h2>
+        <ul class="styled-list">
+            <li><strong>1.</strong> Метрика Хартлі дозволила ефективно обчислити кількість інформації, спираючись виключно на символьну довжину тексту, ігноруючи його семантичний зміст.</li>
+            <li><strong>2.</strong> Визначено, що один символ англомовного художнього тексту при M=40 несе ~5.32 біти інформації.</li>
+            <li><strong>3.</strong> Доведено, що найбільший стрибок ентропії відбувається на рівні об'єднання речень в абзаци.</li>
+            <li><strong>4.</strong> Лабораторне завдання виконано в повному обсязі зусиллями всієї команди.</li>
+        </ul>
+    </div>
+
+    <!-- Слайд 17 -->
+    <div class="slide">
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center;">
+            <h1 style="font-size: 5em; color: var(--highlight); text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);">ДЯКУЄМО ЗА УВАГУ!</h1>
+            <p style="font-size: 2em; color: var(--accent); margin-top: 30px;">Команда готова відповісти на ваші запитання.</p>
+        </div>
+    </div>
+
+    <!-- Навігація -->
+    <div class="controls">
+        <button id="prevBtn" onclick="changeSlide(-1)" disabled>← Попередній</button>
+        <span class="slide-counter" id="counter">1 / 17</span>
+        <button id="nextBtn" onclick="changeSlide(1)">Наступний →</button>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const counter = document.getElementById('counter');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    function updateControls() {
+        counter.textContent = `${currentSlide + 1} / ${slides.length}`;
+        prevBtn.disabled = currentSlide === 0;
+        nextBtn.disabled = currentSlide === slides.length - 1;
+    }
+
+    function changeSlide(direction) {
+        slides[currentSlide].classList.remove('active');
+        currentSlide += direction;
+        slides[currentSlide].classList.add('active');
+        updateControls();
+    }
+</script>
+</body>
+</html>  
